@@ -21,3 +21,4 @@ docker run --name rainy_isaac \
   -v /opt/isaac_cache/compute:/root/.nv/ComputeCache \
   nvcr.io/nvidia/isaac-sim:4.2.0 \
   --allow-root
+  --/app/livestream/publicEndpointAddress=127.0.0.1 \
