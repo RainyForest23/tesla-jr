@@ -7,6 +7,7 @@ docker run --name rainy_isaac \
   --network=host \
   --shm-size=8g \
   --privileged \
+  --entrypoint /isaac-sim/isaac-sim.sh \
   -e "ACCEPT_EULA=Y" \
   -e "PRIVACY_CONSENT=Y" \
   -e NVIDIA_DRIVER_CAPABILITIES=all \
@@ -23,4 +24,4 @@ docker run --name rainy_isaac \
   -v /opt/isaac_cache/glcache:/root/.cache/nvidia/GLCache \
   -v /opt/isaac_cache/compute:/root/.nv/ComputeCache \
   nvcr.io/nvidia/isaac-sim:4.2.0 \
-  /isaac-sim/isaac-sim.sh --allow-root
+  --allow-root
