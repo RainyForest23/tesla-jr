@@ -33,7 +33,13 @@ BASE_FRAME = "base_link"
 ART_PATH = "/World/t870/base_link"
 WIDTH, HEIGHT = 640, 480
 
-# 추가할 좌/우 카메라 설정 (front 제외)
+# 화각/각도 튜닝
+#  FOCAL_MM: 작을수록 광각. 16mm ≈ 수평 66° (기본 aperture 20.955mm 기준).
+#  yaw_deg : 마운트(±90°) 기준 카메라를 앞쪽으로 더 틀어주는 각.
+#            left -30° / right +30° -> 좌우 카메라 중심이 ±60° -> front 와 합쳐
+#            전방 약 180° 연속 커버 (화각 66° 라 이음새 겹침).
+FOCAL_MM = 16.0
+
 CAMERAS = [
     {
         "mount": "/World/t870/left_camera_mount",
@@ -41,6 +47,7 @@ CAMERAS = [
         "graph": "/World/T870LeftCamGraph",
         "frame": "left_cam",
         "topic": "/left_cam",
+        "yaw_deg": -30.0,   # 앞쪽으로 틀기 (mount +90° -> 실제 +60°)
     },
     {
         "mount": "/World/t870/right_camera_mount",
@@ -48,11 +55,18 @@ CAMERAS = [
         "graph": "/World/T870RightCamGraph",
         "frame": "right_cam",
         "topic": "/right_cam",
+        "yaw_deg": +30.0,   # 앞쪽으로 틀기 (mount -90° -> 실제 -60°)
     },
 ]
 
 # front 와 동일: USD 카메라 local -Z 를 mount +X 로 (mount 회전이 방향 결정)
-_CAM_ROT = Gf.Matrix3d(0, -1, 0,   0, 0, 1,   -1, 0, 0)
+_CAM_BASE = Gf.Matrix3d(0, -1, 0,   0, 0, 1,   -1, 0, 0)
+
+
+def _cam_quat(yaw_deg):
+    """기본 방향(_CAM_BASE) 에 mount-local up(+Z) 기준 yaw 를 추가."""
+    yaw = Gf.Matrix3d(Gf.Rotation(Gf.Vec3d(0, 0, 1), yaw_deg))
+    return (_CAM_BASE * yaw).ExtractRotation().GetQuat()
 
 
 def create_camera(cfg):
@@ -60,16 +74,16 @@ def create_camera(cfg):
     if not stage.GetPrimAtPath(Sdf.Path(cfg["mount"])).IsValid():
         print(f"!!! mount 없음: {cfg['mount']} (T870 임포트 확인)")
         return False
+    # 재실행 시 각도/화각 갱신 위해 기존 prim 제거 후 재생성
     if stage.GetPrimAtPath(Sdf.Path(cfg["prim"])).IsValid():
-        print(f"카메라 이미 있음: {cfg['prim']}")
-        return True
+        stage.RemovePrim(cfg["prim"])
     cam = UsdGeom.Camera.Define(stage, cfg["prim"])
-    quat = _CAM_ROT.ExtractRotation().GetQuat()
     xf = UsdGeom.Xformable(cam.GetPrim())
-    xf.AddOrientOp().Set(Gf.Quatf(quat))
-    cam.CreateFocalLengthAttr(18.0)
+    xf.AddOrientOp().Set(Gf.Quatf(_cam_quat(cfg["yaw_deg"])))
+    cam.CreateFocalLengthAttr(FOCAL_MM)
     cam.CreateClippingRangeAttr(Gf.Vec2f(0.05, 1000.0))
-    print(f"카메라 생성: {cfg['prim']} (frame={cfg['frame']})")
+    print(f"카메라 생성: {cfg['prim']} (frame={cfg['frame']}, "
+          f"yaw={cfg['yaw_deg']:+.0f}°, focal={FOCAL_MM}mm)")
     return True
 
 
