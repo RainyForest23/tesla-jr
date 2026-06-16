@@ -91,6 +91,28 @@ def add_obstacles_simple():
     print(f"[simple] 장애물 {counter[0]}개: (5,+0.7)/(9,-0.7)")
 
 
+def add_obstacles_gate():
+    """전방-대각선 게이트. 기둥을 ±40~50° 방향에 둬서 front 단독 화각(±30°)
+    밖이지만 좌/우 카메라(중심 ±60°) FOV 안에 들도록 배치 -> 3카메라 통합
+    costmap 효과 검증용. 로봇은 게이트 사이를 통과해 목표 (6,0) 으로 주행.
+
+        (2.0,+1.3) 빨강                 [목표 6,0]
+        [robot]→            (4.0,+0.9) 빨강(살짝 우회)
+        (2.0,-1.3) 파랑
+    """
+    stage = omni.usd.get_context().get_stage()
+    _clear_obstacles(stage)
+    counter = [0]
+    # 게이트 기둥 (atan(1.3/2.0)≈33°, 좌/우 카메라 FOV 안)
+    _spawn_cubes([(2.0, 1.3)], (0.9, 0.1, 0.1), counter)   # 좌 기둥
+    _spawn_cubes([(2.0, -1.3)], (0.1, 0.3, 0.9), counter)  # 우 기둥
+    # 통과 후 살짝 우회시킬 장애물
+    _spawn_cubes([(4.0, 0.9)], (0.9, 0.1, 0.1), counter)
+    print(f"[gate] 장애물 {counter[0]}개: 게이트(2,±1.3)+(4,+0.9). 목표 (6,0).")
+    print("  goal 예: ros2 topic pub --once /goal_pose geometry_msgs/msg/"
+          "PoseStamped \"{header:{frame_id:'odom'},pose:{position:{x:6.0,y:0.0}}}\"")
+
+
 def add_obstacles_reverse():
     """전방 벽 + 뒤쪽 목표 = 후진(K턴) 유발.
 
@@ -153,11 +175,13 @@ def add_obstacles_hairpin():
 
 
 # ─── 레이아웃 선택 ────────────────────────────────────────────────
-LAYOUT = "reverse"   # "simple" | "reverse" | "hairpin"
+LAYOUT = "gate"   # "simple" | "gate" | "reverse" | "hairpin"
 
 setup_lighting()
 if LAYOUT == "simple":
     add_obstacles_simple()
+elif LAYOUT == "gate":
+    add_obstacles_gate()
 elif LAYOUT == "reverse":
     add_obstacles_reverse()
 elif LAYOUT == "hairpin":
