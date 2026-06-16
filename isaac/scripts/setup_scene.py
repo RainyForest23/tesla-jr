@@ -40,24 +40,31 @@ def setup_lighting():
 
 
 def add_obstacles():
-    # (x, y, RGB) - 로봇 전방(+X)에 배치
+    import omni.usd
+    stage = omni.usd.get_context().get_stage()
+    # 기존 장애물 제거 (재배치)
+    for i in range(8):
+        p = f"/World/obstacle_{i}"
+        if stage.GetPrimAtPath(p).IsValid():
+            stage.RemovePrim(p)
+
+    # Ackermann 최소반경(~0.95m) 으로 피할 수 있게 한쪽으로 치우치고 넓게 벌림.
+    # 로봇은 직선 경로에서 완만한 S 로 회피.
+    # (x, y, RGB)
     props = [
-        (3.0,  0.0, (0.9, 0.1, 0.1)),   # 빨강 (정면)
-        (4.0,  1.5, (0.1, 0.8, 0.1)),   # 초록 (좌)
-        (4.0, -1.5, (0.1, 0.3, 0.9)),   # 파랑 (우)
-        (5.5,  0.5, (0.9, 0.8, 0.1)),   # 노랑 (멀리)
+        (5.0,  0.7, (0.9, 0.1, 0.1)),   # 빨강 (살짝 좌 -> 우로 완만 회피)
+        (9.0, -0.7, (0.1, 0.3, 0.9)),   # 파랑 (살짝 우 -> 좌로 완만 회피)
     ]
     for i, (x, y, color) in enumerate(props):
-        path = f"/World/obstacle_{i}"
         FixedCuboid(
-            prim_path=path,
+            prim_path=f"/World/obstacle_{i}",
             name=f"obstacle_{i}",
             position=np.array([x, y, 0.5]),
             scale=np.array([0.5, 0.5, 1.0]),
             color=np.array(color),
         )
-        print(f"  장애물 {i}: pos=({x},{y}) color={color}")
-    print("장애물 배치 완료")
+        print(f"  장애물 {i}: pos=({x},{y})")
+    print("장애물 배치 완료 (완만 회피용: 5,+0.7 / 9,-0.7)")
 
 
 setup_lighting()
