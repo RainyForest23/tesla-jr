@@ -1,0 +1,85 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /TF1
+        - /Odometry1
+        - /Stereo Left1
+        - /Stereo Right1
+      Splitter Ratio: 0.5
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 1
+      Plane Cell Count: 20
+      Color: 160; 160; 164
+      Reference Frame: <Fixed Frame>
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Show Names: true
+      Show Axes: true
+      Show Arrows: true
+      Marker Scale: 1
+    - Class: rviz_default_plugins/Odometry
+      Name: Odometry
+      Enabled: true
+      Topic:
+        Value: /odom
+        Depth: 10
+        Reliability Policy: Reliable
+        History Policy: Keep Last
+      Keep: 100
+      Position Tolerance: 0.1
+      Angle Tolerance: 0.1
+      Covariance:
+        Value: false
+    - Class: rviz_default_plugins/Image
+      Name: Stereo Left
+      Enabled: true
+      Topic:
+        Value: /stereo/left/image_raw
+        Depth: 5
+        Reliability Policy: Reliable
+        History Policy: Keep Last
+    - Class: rviz_default_plugins/Image
+      Name: Stereo Right
+      Enabled: true
+      Topic:
+        Value: /stereo/right/image_raw
+        Depth: 5
+        Reliability Policy: Reliable
+        History Policy: Keep Last
+  Global Options:
+    Fixed Frame: odom
+    Background Color: 48; 48; 48
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Distance: 8
+      Pitch: 0.5
+      Yaw: 0.785
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0
+    Saved: ~
+Window Geometry:
+  Height: 900
+  Width: 1400
+  Displays:
+    collapsed: false
+  Views:
+    collapsed: false
