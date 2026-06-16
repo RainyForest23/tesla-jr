@@ -82,9 +82,31 @@ local_costmap:
         z_voxels: 16
         max_obstacle_height: 2.0
         mark_threshold: 0
-        observation_sources: pointcloud
-        pointcloud:
+        observation_sources: front left right
+        front:
           topic: /stereo/left/points
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.35
+          clearing: True
+          marking: True
+          data_type: "PointCloud2"
+          obstacle_max_range: 6.0
+          obstacle_min_range: 0.2
+          raytrace_max_range: 8.0
+          raytrace_min_range: 0.2
+        left:
+          topic: /left_cam/points
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.35
+          clearing: True
+          marking: True
+          data_type: "PointCloud2"
+          obstacle_max_range: 6.0
+          obstacle_min_range: 0.2
+          raytrace_max_range: 8.0
+          raytrace_min_range: 0.2
+        right:
+          topic: /right_cam/points
           max_obstacle_height: 2.0
           min_obstacle_height: 0.35
           clearing: True
@@ -123,9 +145,31 @@ global_costmap:
         z_voxels: 16
         max_obstacle_height: 2.0
         mark_threshold: 0
-        observation_sources: pointcloud
-        pointcloud:
+        observation_sources: front left right
+        front:
           topic: /stereo/left/points
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.35
+          clearing: True
+          marking: True
+          data_type: "PointCloud2"
+          obstacle_max_range: 6.0
+          obstacle_min_range: 0.2
+          raytrace_max_range: 8.0
+          raytrace_min_range: 0.2
+        left:
+          topic: /left_cam/points
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.35
+          clearing: True
+          marking: True
+          data_type: "PointCloud2"
+          obstacle_max_range: 6.0
+          obstacle_min_range: 0.2
+          raytrace_max_range: 8.0
+          raytrace_min_range: 0.2
+        right:
+          topic: /right_cam/points
           max_obstacle_height: 2.0
           min_obstacle_height: 0.35
           clearing: True

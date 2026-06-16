@@ -68,7 +68,7 @@ Visualization Manager:
         History Policy: Keep Last
       Color: 0; 255; 0
     - Class: rviz_default_plugins/PointCloud2
-      Name: Depth Cloud
+      Name: Front Cloud
       Enabled: true
       Topic:
         Value: /stereo/left/points
@@ -79,8 +79,32 @@ Visualization Manager:
       Size (Pixels): 3
       Color Transformer: AxisColor
       Axis: Z
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Left Cloud
+      Enabled: true
+      Topic:
+        Value: /left_cam/points
+        Depth: 5
+        Reliability Policy: Reliable
+        History Policy: Keep Last
+      Style: Points
+      Size (Pixels): 3
+      Color Transformer: FlatColor
+      Color: 0; 255; 0
+    - Class: rviz_default_plugins/PointCloud2
+      Name: Right Cloud
+      Enabled: true
+      Topic:
+        Value: /right_cam/points
+        Depth: 5
+        Reliability Policy: Reliable
+        History Policy: Keep Last
+      Style: Points
+      Size (Pixels): 3
+      Color Transformer: FlatColor
+      Color: 0; 128; 255
     - Class: rviz_default_plugins/Image
-      Name: Stereo Left
+      Name: Front Cam
       Enabled: true
       Topic:
         Value: /stereo/left/image_raw
@@ -88,10 +112,18 @@ Visualization Manager:
         Reliability Policy: Reliable
         History Policy: Keep Last
     - Class: rviz_default_plugins/Image
-      Name: Stereo Right
+      Name: Left Cam
       Enabled: true
       Topic:
-        Value: /stereo/right/image_raw
+        Value: /left_cam/image_raw
+        Depth: 5
+        Reliability Policy: Reliable
+        History Policy: Keep Last
+    - Class: rviz_default_plugins/Image
+      Name: Right Cam
+      Enabled: true
+      Topic:
+        Value: /right_cam/image_raw
         Depth: 5
         Reliability Policy: Reliable
         History Policy: Keep Last
