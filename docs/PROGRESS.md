@@ -66,26 +66,30 @@ cd ~/Desktop/git_teslaJR/docker && ./run_isaac_gui.sh
 ```
 Isaac Sim GUI가 뜰 때까지 대기 (`Isaac Sim App is loaded.`).
 
-### Step 2 — 로봇 스폰 (Script Editor)
-> Window > Script Editor
+### Step 2 — 씬 구성 (원클릭 런처, Script Editor)
+> Window > Script Editor. **새 씬(File > New)에서 시작 권장.**
 ```python
-exec(open("/workspace/isaac/scripts/spawn_robot.py").read())
+exec(open("/workspace/isaac/scripts/launch_all.py").read())
 ```
-`스폰 완료` 메시지 확인. 뷰포트에 Carter가 바닥 위에 보이면 OK.
+spawn_robot + setup_scene + stereo_camera_publish + teleop_cmdvel 를 한 번에 구성.
 
 ### Step 3 — Play (▶)
-물리 시뮬레이션 시작. 로봇이 바닥을 통과해 떨어지면 PhysicsScene 문제 (TROUBLESHOOTING 참고).
+물리 + 모든 OmniGraph 초기화. 로봇이 바닥을 통과해 떨어지면 PhysicsScene 문제 (TROUBLESHOOTING 참고).
 
 ### Step 4 — 상태 publish (clock/odom/tf)
+> **반드시 Play 이후에 실행** (dynamic_control 핸들이 물리 시작 후 유효).
 ```python
 exec(open("/workspace/isaac/scripts/sim_ros2_bridge.py").read())
 ```
 
-### Step 5 — stereo camera publish
-```python
-exec(open("/workspace/isaac/scripts/stereo_camera_publish.py").read())
+> 개별 실행이 필요하면 `spawn_robot.py` → Play → 나머지 순으로도 가능.
+> OmniGraph 기반(stereo, teleop)은 Play 시점에 초기화되므로, 나중에 추가했다면 Stop→Play 한 번.
+
+### Step 5 — 주행 (선택)
+```bash
+ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 0.4}, angular: {z: 0.2}}"
+# 멈춤: x=0, z=0 으로 한번 더
 ```
-실행 후 **Stop → Play** 한 번 (그래프가 Play 시점에 초기화돼야 함).
 
 ### Step 6 — 호스트에서 검증
 ```bash

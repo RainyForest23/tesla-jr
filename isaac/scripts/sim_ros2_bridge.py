@@ -36,10 +36,12 @@ from geometry_msgs.msg import TransformStamped
 
 import omni.usd
 import omni.physx
-from pxr import UsdGeom, Gf, Sdf
+from omni.isaac.dynamic_control import _dynamic_control
 
 # ----------------------------- 설정 -----------------------------
-ROBOT_PRIM_PATH = "/World/Carter"  # spawn_robot.py 가 스폰하는 경로. 다르면 수정.
+# odom/tf 는 실제로 움직이는 차체 링크를 읽어야 한다.
+# articulation root(/World/Carter)는 래퍼라 물리로 안 움직임 -> chassis_link 사용.
+ROBOT_PRIM_PATH = "/World/Carter/chassis_link"
 ODOM_FRAME = "odom"
 BASE_FRAME = "base_link"
 # ----------------------------------------------------------------
@@ -53,13 +55,12 @@ class IsaacStateBridge(Node):
         self.odom_pub = self.create_publisher(Odometry, "/odom", 10)
         self.tf_pub = self.create_publisher(TFMessage, "/tf", 10)
 
-        self._stage = omni.usd.get_context().get_stage()
-        self._robot_path = Sdf.Path(ROBOT_PRIM_PATH)
-        self._xform_cache = UsdGeom.XformCache()
+        # 물리 엔진의 실제 강체 pose/속도를 읽기 위한 dynamic_control 인터페이스
+        # (USD XformCache 는 정적 스폰값만 반환하므로 사용 불가)
+        self._dc = _dynamic_control.acquire_dynamic_control_interface()
+        self._handle = None
 
         self._sim_time = 0.0
-        self._prev_pos = None       # np.array([x, y, z])
-        self._prev_yaw = None
         self._warned_missing = False
 
         # 물리 스텝마다 콜백 (메인 sim 스레드에서 실행됨)
@@ -81,39 +82,32 @@ class IsaacStateBridge(Node):
         clk.clock = stamp
         self.clock_pub.publish(clk)
 
-        # 로봇 포즈 읽기
-        prim = self._stage.GetPrimAtPath(self._robot_path)
-        if not prim or not prim.IsValid():
-            if not self._warned_missing:
-                self.get_logger().warn(
-                    f"prim 을 찾을 수 없음: {ROBOT_PRIM_PATH} "
-                    f"(ROBOT_PRIM_PATH 수정 필요)"
-                )
-                self._warned_missing = True
-            return
+        # 강체 핸들 지연 획득 (Play 이후 물리 뷰가 있어야 유효)
+        if self._handle is None:
+            self._handle = self._dc.get_rigid_body(ROBOT_PRIM_PATH)
+            if self._handle == _dynamic_control.INVALID_HANDLE or not self._handle:
+                self._handle = None
+                if not self._warned_missing:
+                    self.get_logger().warn(
+                        f"강체 핸들 획득 실패: {ROBOT_PRIM_PATH} "
+                        f"(Play 중인지, 경로가 rigid body 인지 확인)"
+                    )
+                    self._warned_missing = True
+                return
 
-        self._xform_cache.Clear()
-        m = self._xform_cache.GetLocalToWorldTransform(prim)
-        t = m.ExtractTranslation()
-        q = m.ExtractRotationQuat()  # Gf.Quatd
-        pos = np.array([t[0], t[1], t[2]], dtype=float)
-        qr = q.GetReal()
-        qi = q.GetImaginary()
-        quat = (qi[0], qi[1], qi[2], qr)  # (x, y, z, w)
+        # 물리 엔진의 실제 pose / 속도 읽기
+        pose = self._dc.get_rigid_body_pose(self._handle)
+        lin = self._dc.get_rigid_body_linear_velocity(self._handle)
+        ang = self._dc.get_rigid_body_angular_velocity(self._handle)
+
+        pos = (pose.p.x, pose.p.y, pose.p.z)
+        quat = (pose.r.x, pose.r.y, pose.r.z, pose.r.w)  # (x, y, z, w)
         yaw = self._yaw_from_quat(quat)
 
-        # 유한차분 속도
-        if self._prev_pos is not None and dt > 1e-6:
-            vx_w = (pos[0] - self._prev_pos[0]) / dt
-            vy_w = (pos[1] - self._prev_pos[1]) / dt
-            # 월드 속도 -> 로봇 기준(body) 전진/측면 속도
-            v_forward = vx_w * math.cos(yaw) + vy_w * math.sin(yaw)
-            v_lateral = -vx_w * math.sin(yaw) + vy_w * math.cos(yaw)
-            wz = self._angle_diff(yaw, self._prev_yaw) / dt
-        else:
-            v_forward = v_lateral = wz = 0.0
-        self._prev_pos = pos
-        self._prev_yaw = yaw
+        # 월드 선속도 -> 로봇 기준(body) 전진/측면 속도
+        v_forward = lin.x * math.cos(yaw) + lin.y * math.sin(yaw)
+        v_lateral = -lin.x * math.sin(yaw) + lin.y * math.cos(yaw)
+        wz = ang.z
 
         # /odom
         odom = Odometry()
