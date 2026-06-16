@@ -91,6 +91,37 @@ def add_obstacles_simple():
     print(f"[simple] 장애물 {counter[0]}개: (5,+0.7)/(9,-0.7)")
 
 
+def add_obstacles_corner():
+    """L자 코너 + 후진 유발. 로봇이 진입차선을 직진하다 정면 벽(x=3.6)에 막혀
+    좌측(+Y)으로 90° 꺾어 출구차선으로 진입해야 한다. 코너 통로가 좁아 최소
+    회전반경(~1.0m)으로는 한 번에 못 돌고 전진->후진->전진(3점턴)이 필요.
+    목표 (2.6, 4.0). 정면 벽 = '반드시 피해야 하는 앞 장애물'.
+
+        inner(x=1.6)│   │outer/정면벽(x=3.6)
+                    │   │
+        ─top(y=1.2)─┘   │   <- 진입차선 윗벽(짧게)
+        [robot]→        │      진입(+X) -> 코너 -> 출구(+Y)
+        ────bottom(y=-1.2)──┘
+    """
+    stage = omni.usd.get_context().get_stage()
+    _clear_obstacles(stage)
+    counter = [0]
+    gray = (0.6, 0.6, 0.6)
+    red = (0.9, 0.1, 0.1)
+    bottom = _wall(0.0, -1.2, 3.6, -1.2)    # 진입차선 바닥벽
+    outer = _wall(3.6, -1.2, 3.6, 4.5)      # 정면벽 + 출구차선 바깥벽
+    topentry = _wall(0.0, 1.2, 1.6, 1.2)    # 진입차선 윗벽 (짧게)
+    inner = _wall(1.6, 1.2, 1.6, 4.5)       # 출구차선 안쪽벽
+    _spawn_cubes(bottom, gray, counter)
+    _spawn_cubes(outer, red, counter)       # 정면벽 빨강 강조
+    _spawn_cubes(topentry, gray, counter)
+    _spawn_cubes(inner, gray, counter)
+    print(f"[corner] 벽 큐브 {counter[0]}개. 정면벽(x=3.6) 만나 좌 90° 꺾어 진입.")
+    print("  목표 (2.6,4.0). 코너가 좁아 후진(3점턴) 발생 예상.")
+    print("  goal 예: ros2 topic pub --once /goal_pose geometry_msgs/msg/"
+          "PoseStamped \"{header:{frame_id:'odom'},pose:{position:{x:2.6,y:4.0}}}\"")
+
+
 def add_obstacles_gate():
     """전방-대각선 게이트. 기둥을 ±40~50° 방향에 둬서 front 단독 화각(±30°)
     밖이지만 좌/우 카메라(중심 ±60°) FOV 안에 들도록 배치 -> 3카메라 통합
@@ -175,13 +206,15 @@ def add_obstacles_hairpin():
 
 
 # ─── 레이아웃 선택 ────────────────────────────────────────────────
-LAYOUT = "gate"   # "simple" | "gate" | "reverse" | "hairpin"
+LAYOUT = "corner"   # "simple" | "gate" | "corner" | "reverse" | "hairpin"
 
 setup_lighting()
 if LAYOUT == "simple":
     add_obstacles_simple()
 elif LAYOUT == "gate":
     add_obstacles_gate()
+elif LAYOUT == "corner":
+    add_obstacles_corner()
 elif LAYOUT == "reverse":
     add_obstacles_reverse()
 elif LAYOUT == "hairpin":

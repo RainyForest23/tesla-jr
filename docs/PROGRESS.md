@@ -31,6 +31,15 @@ Isaac Sim 4.2.0 (Docker, GUI)  /World/Carter (nova_carter_sensors)
 **★ 1차 목표 달성 (2026-06-17): T870 자율주행 + 장애물 회피 시뮬 작동**
 카메라→포인트클라우드→costmap→Nav2(Smac Hybrid-A*/RPP)→/cmd_vel→Ackermann→T870 주행→목표 도달.
 
+**좌/우 스테레오 카메라 추가 (2026-06-17)**: 실제 T870 설계대로 정면+좌+우 3카메라.
+- `isaac/scripts/add_side_cameras.py` (front 불변, 좌/우만 추가).
+- 좌/우를 전방 30° 틸트(실제 중심 ±60°) + 화각 ~66°(focal 16mm) → 전방 약 180° 연속 커버.
+- 토픽 /left_cam/*, /right_cam/* (image_raw/camera_info/points). 정적 TF
+  base_link→{left_cam,right_cam} /tf_static latched (optical 180°X 보정).
+- 3 클라우드 모두 Nav2 voxel_layer observation_sources(front/left/right)로 연결.
+- 검증: 'gate' 레이아웃(전방-대각선 33~52° 기둥) 목표 (6,0) 통과 — front 화각 밖
+  기둥을 좌/우 카메라가 마킹해 회피 성공.
+
 **장애물 회피 검증 (2026-06-17, 클린 재시작 후)**: 목표 (11,0) 자율 도달.
 - 장애물①(5,+0.7) → 오른쪽으로 회피 (y −0.13)
 - 장애물②(9,−0.7) → 왼쪽으로 회피 (y +0.12)
