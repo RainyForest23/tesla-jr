@@ -108,17 +108,17 @@ def add_obstacles_corner():
     counter = [0]
     gray = (0.6, 0.6, 0.6)
     red = (0.9, 0.1, 0.1)
-    # 차체가 1.0m(길이)라 코너에 충분한 회전공간 필요: 차선폭 ~3.0m.
-    bottom = _wall(0.0, -1.4, 4.0, -1.4)    # 진입차선 바닥벽
-    outer = _wall(4.0, -1.4, 4.0, 5.0)      # 정면벽 + 출구차선 바깥벽
-    topentry = _wall(0.0, 1.4, 1.0, 1.4)    # 진입차선 윗벽 (짧게)
-    inner = _wall(1.0, 1.4, 1.0, 5.0)       # 출구차선 안쪽벽 (폭 3.0m)
+    # 차선폭 2.4m 로 조임: 1m 차체가 90° 코너를 한 번에 못 돌아 후진(3점턴) 유발.
+    bottom = _wall(0.0, -1.2, 3.8, -1.2)    # 진입차선 바닥벽
+    outer = _wall(3.8, -1.2, 3.8, 5.0)      # 정면벽 + 출구차선 바깥벽
+    topentry = _wall(0.0, 1.2, 1.4, 1.2)    # 진입차선 윗벽 (짧게)
+    inner = _wall(1.4, 1.2, 1.4, 5.0)       # 출구차선 안쪽벽 (폭 2.4m)
     _spawn_cubes(bottom, gray, counter)
     _spawn_cubes(outer, red, counter)       # 정면벽 빨강 강조
     _spawn_cubes(topentry, gray, counter)
     _spawn_cubes(inner, gray, counter)
-    print(f"[corner] 벽 큐브 {counter[0]}개. 정면벽(x=4.0) 만나 좌 90° 꺾어 진입.")
-    print("  목표 (2.5,4.0). send_goal.sh 2.5 4.0")
+    print(f"[corner] 벽 큐브 {counter[0]}개. 정면벽(x=3.8) 만나 좌 90° 꺾어 진입(폭 2.4m).")
+    print("  목표 (2.6,4.0). send_goal.sh 2.6 4.0  -> 좁아서 후진(3점턴) 예상")
 
 
 def add_obstacles_gate():
