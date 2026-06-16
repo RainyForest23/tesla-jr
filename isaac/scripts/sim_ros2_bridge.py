@@ -41,15 +41,15 @@ from omni.isaac.dynamic_control import _dynamic_control
 from pxr import UsdGeom, Sdf, Gf
 
 # ----------------------------- 설정 -----------------------------
-# odom/tf 는 실제로 움직이는 차체 링크를 읽어야 한다.
-# articulation root(/World/Carter)는 래퍼라 물리로 안 움직임 -> chassis_link 사용.
-ROBOT_PRIM_PATH = "/World/Carter/chassis_link"
+# T870: 실제 움직이는 차체 링크(base_link)를 읽음.
+ROBOT_PRIM_PATH = "/World/t870/base_link"
 ODOM_FRAME = "odom"
 BASE_FRAME = "base_link"
 
 # 카메라 정적 TF (고정 마운트). 포인트클라우드/이미지 frame_id 와 일치시킬 것.
+# t870_camera.py 가 생성하는 전방 카메라. 없으면 카메라 TF 는 건너뜀.
 CAMERA_FRAME = "stereo_left"
-CAMERA_PRIM_PATH = "/World/Carter/chassis_link/front_hawk/left/camera_left"
+CAMERA_PRIM_PATH = "/World/t870/front_camera_mount/front_cam"
 # ----------------------------------------------------------------
 
 

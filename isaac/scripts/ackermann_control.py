@@ -92,10 +92,12 @@ class AckermannControl:
                 props["damping"][i] = 1.0e4
                 props["maxEffort"][i] = 1.0e5
             elif nm in ROLL_JOINTS:
+                # 앞바퀴는 완전 자유 회전이어야 함 (damping>0 이면 브레이크처럼
+                # 굴러가는 걸 막아 전진을 방해). stiffness/damping 모두 0.
                 props["driveMode"][i] = _dynamic_control.DRIVE_FORCE
                 props["stiffness"][i] = 0.0
-                props["damping"][i] = 1.0
-                props["maxEffort"][i] = 1.0e4
+                props["damping"][i] = 0.0
+                props["maxEffort"][i] = 0.0
         self.dc.set_articulation_dof_properties(self.art, props)
         print("드라이브 게인 설정 완료")
 
