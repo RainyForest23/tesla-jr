@@ -41,15 +41,15 @@ controller_server:
     # RPP (Regulated Pure Pursuit) - Ackermann/차량형 적합. 제자리 회전 안 함.
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
-      desired_linear_vel: 0.4
-      lookahead_dist: 0.7
-      min_lookahead_dist: 0.4
-      max_lookahead_dist: 1.0
-      lookahead_time: 1.5
+      desired_linear_vel: 0.5
+      lookahead_dist: 1.2                 # 크게 -> 완만한 선회 (선회반경 ↑)
+      min_lookahead_dist: 0.8
+      max_lookahead_dist: 1.6
+      lookahead_time: 2.0
       use_velocity_scaled_lookahead_dist: false
-      min_approach_linear_velocity: 0.1
+      min_approach_linear_velocity: 0.15
       approach_velocity_scaling_dist: 0.6
-      use_regulated_linear_velocity_scaling: true
+      use_regulated_linear_velocity_scaling: false  # 감속 끔 -> 선회 중 추진력 유지
       regulated_linear_scaling_min_radius: 0.9
       regulated_linear_scaling_min_speed: 0.25
       use_rotate_to_heading: false       # Ackermann: 제자리 회전 금지 (필수)

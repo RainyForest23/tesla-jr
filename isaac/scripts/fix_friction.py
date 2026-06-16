@@ -22,25 +22,31 @@ if b:
     p = dc.get_rigid_body_pose(b)
     print(f"base_link z = {p.p.z:.3f}  (바퀴로 서면 ~0.12 근처, 음수면 차체 접지)")
 
-# 2) 고마찰 재질
-mat = PhysicsMaterial(
-    prim_path="/World/Physics/high_friction",
-    static_friction=1.5,
-    dynamic_friction=1.2,
-    restitution=0.0,
+# 2) 재질 2종: 뒷바퀴=구동용 고마찰, 앞바퀴=조향용 저마찰(scrub-lock 방지)
+mat_rear = PhysicsMaterial(
+    prim_path="/World/Physics/rear_high_friction",
+    static_friction=1.5, dynamic_friction=1.2, restitution=0.0,
+)
+mat_front = PhysicsMaterial(
+    prim_path="/World/Physics/front_low_friction",
+    static_friction=0.3, dynamic_friction=0.25, restitution=0.0,
 )
 
-# 3) 바퀴 collider 에 적용 (link 와 /collisions 둘 다 시도)
-wheels = ["rear_left_wheel", "rear_right_wheel",
-          "front_left_wheel", "front_right_wheel"]
-for w in wheels:
+# 3) 바퀴 collider 에 적용 (뒤=고마찰, 앞=저마찰)
+wheel_mat = {
+    "rear_left_wheel": mat_rear, "rear_right_wheel": mat_rear,
+    "front_left_wheel": mat_front, "front_right_wheel": mat_front,
+}
+mat = mat_rear  # 바닥엔 고마찰
+for w, m in wheel_mat.items():
     applied = False
     for path in [f"/World/t870/{w}/collisions", f"/World/t870/{w}"]:
         if not stage.GetPrimAtPath(path).IsValid():
             continue
         try:
-            GeometryPrim(path).apply_physics_material(mat)
-            print(f"마찰 적용: {path}")
+            GeometryPrim(path).apply_physics_material(m)
+            tag = "저마찰" if m is mat_front else "고마찰"
+            print(f"마찰 적용({tag}): {path}")
             applied = True
             break
         except Exception as e:
