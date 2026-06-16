@@ -36,7 +36,9 @@ from geometry_msgs.msg import TransformStamped
 
 import omni.usd
 import omni.physx
+import omni.timeline
 from omni.isaac.dynamic_control import _dynamic_control
+from pxr import UsdGeom, Sdf, Gf
 
 # ----------------------------- 설정 -----------------------------
 # odom/tf 는 실제로 움직이는 차체 링크를 읽어야 한다.
@@ -44,6 +46,10 @@ from omni.isaac.dynamic_control import _dynamic_control
 ROBOT_PRIM_PATH = "/World/Carter/chassis_link"
 ODOM_FRAME = "odom"
 BASE_FRAME = "base_link"
+
+# 카메라 정적 TF (고정 마운트). 포인트클라우드/이미지 frame_id 와 일치시킬 것.
+CAMERA_FRAME = "stereo_left"
+CAMERA_PRIM_PATH = "/World/Carter/chassis_link/front_hawk/left/camera_left"
 # ----------------------------------------------------------------
 
 
@@ -60,8 +66,16 @@ class IsaacStateBridge(Node):
         self._dc = _dynamic_control.acquire_dynamic_control_interface()
         self._handle = None
 
+        # Isaac 타임라인 시간 (카메라/clock 과 동일 소스). 직접 누적하면
+        # 재실행 시 0으로 리셋돼 카메라 stamp 와 어긋나므로 타임라인을 읽는다.
+        self._timeline = omni.timeline.get_timeline_interface()
         self._sim_time = 0.0
         self._warned_missing = False
+
+        # 카메라 정적 TF (base_link -> camera) 1회 계산 (고정 마운트)
+        self._cam_trans = None
+        self._cam_quat = None
+        self._compute_camera_static_tf()
 
         # 물리 스텝마다 콜백 (메인 sim 스레드에서 실행됨)
         self._phys_sub = (
@@ -72,10 +86,41 @@ class IsaacStateBridge(Node):
             f"IsaacStateBridge 시작. 로봇 prim = {ROBOT_PRIM_PATH}"
         )
 
+    def _compute_camera_static_tf(self):
+        """base_link(chassis) 기준 카메라의 상대 변환을 USD 에서 1회 읽음."""
+        try:
+            stage = omni.usd.get_context().get_stage()
+            base = stage.GetPrimAtPath(Sdf.Path(ROBOT_PRIM_PATH))
+            cam = stage.GetPrimAtPath(Sdf.Path(CAMERA_PRIM_PATH))
+            if not base.IsValid() or not cam.IsValid():
+                self.get_logger().warn("카메라 정적 TF 계산 실패 (prim 없음)")
+                return
+            xc = UsdGeom.XformCache()
+            m_base = xc.GetLocalToWorldTransform(base)
+            m_cam = xc.GetLocalToWorldTransform(cam)
+            rel = m_cam * m_base.GetInverse()  # USD 카메라 prim 을 base 프레임으로
+            # optical 보정: USD 카메라(-Z 전방) -> ROS optical(+Z 전방).
+            # X축 180° 회전 (Y,Z 뒤집기). 클라우드가 optical 규약이므로 일치시킴.
+            optical = Gf.Matrix4d().SetRotate(
+                Gf.Rotation(Gf.Vec3d(1, 0, 0), 180.0)
+            )
+            rel = optical * rel
+            t = rel.ExtractTranslation()
+            q = rel.ExtractRotationQuat()
+            qi, qr = q.GetImaginary(), q.GetReal()
+            self._cam_trans = (t[0], t[1], t[2])
+            self._cam_quat = (qi[0], qi[1], qi[2], qr)
+            self.get_logger().info(
+                f"카메라 정적 TF: {BASE_FRAME} -> {CAMERA_FRAME} "
+                f"trans={tuple(round(v,3) for v in self._cam_trans)}"
+            )
+        except Exception as e:
+            self.get_logger().warn(f"카메라 정적 TF 계산 예외: {e}")
+
     # ---------- 매 물리 스텝 ----------
     def _on_physics_step(self, dt: float):
-        self._sim_time += dt
-        stamp = self._make_stamp(self._sim_time)
+        # 시스템(wall) 시간 사용 -> 카메라(useSystemTime=True) 및 RViz 와 시간 일치.
+        stamp = self.get_clock().now().to_msg()
 
         # /clock
         clk = Clock()
@@ -138,7 +183,25 @@ class IsaacStateBridge(Node):
         tf.transform.rotation.y = float(quat[1])
         tf.transform.rotation.z = float(quat[2])
         tf.transform.rotation.w = float(quat[3])
-        self.tf_pub.publish(TFMessage(transforms=[tf]))
+
+        transforms = [tf]
+
+        # base_link -> camera 정적 TF (포인트클라우드/이미지 배치용)
+        if self._cam_trans is not None:
+            cam_tf = TransformStamped()
+            cam_tf.header.stamp = stamp
+            cam_tf.header.frame_id = BASE_FRAME
+            cam_tf.child_frame_id = CAMERA_FRAME
+            cam_tf.transform.translation.x = float(self._cam_trans[0])
+            cam_tf.transform.translation.y = float(self._cam_trans[1])
+            cam_tf.transform.translation.z = float(self._cam_trans[2])
+            cam_tf.transform.rotation.x = float(self._cam_quat[0])
+            cam_tf.transform.rotation.y = float(self._cam_quat[1])
+            cam_tf.transform.rotation.z = float(self._cam_quat[2])
+            cam_tf.transform.rotation.w = float(self._cam_quat[3])
+            transforms.append(cam_tf)
+
+        self.tf_pub.publish(TFMessage(transforms=transforms))
 
     # ---------- 유틸 ----------
     @staticmethod

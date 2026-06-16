@@ -11,24 +11,34 @@
 ```
 Isaac Sim 4.2.0 (Docker, GUI)  /World/Carter (nova_carter_sensors)
   │
-  ├─ /clock                          시뮬레이션 시간            [rclpy]
-  ├─ /odom                           로봇 위치/속도             [rclpy]
-  ├─ /tf                             odom → base_link           [rclpy]
-  ├─ /stereo/left/image_raw          640x480 @~30Hz             [OmniGraph]
-  ├─ /stereo/left/camera_info        intrinsics 포함            [OmniGraph]
-  ├─ /stereo/right/image_raw         640x480 @~30Hz             [OmniGraph]
-  └─ /stereo/right/camera_info       intrinsics 포함            [OmniGraph]
+  ├─ /clock                          시간(wall)                 [rclpy]
+  ├─ /odom                           로봇 위치/속도(dynamic_control) [rclpy]
+  ├─ /tf                             odom→base_link, base_link→stereo_left [rclpy]
+  ├─ /cmd_vel (구독)                 차동 구동 주행             [OmniGraph]
+  ├─ /stereo/{left,right}/image_raw  640x480 @~30Hz             [OmniGraph]
+  ├─ /stereo/{left,right}/camera_info intrinsics 포함           [OmniGraph]
+  ├─ /stereo/left/depth              깊이 이미지(32FC1)         [OmniGraph]
+  └─ /stereo/left/points             포인트클라우드 307200pts @~27Hz [OmniGraph]
         │
-        ▼  (host ROS2 Humble, FastDDS UDP-only)
-   RViz2  ← stereo 좌/우 이미지 + odom + TF 시각화
+        ▼  (host ROS2 Humble, FastDDS UDP-only, 전부 wall-clock 시간)
+   RViz2  ← stereo 이미지 + odom + TF + 포인트클라우드 시각화
+   키보드 텔레옵 ← 방향키/WASD 로 주행
+
+주의: Isaac 카메라/bridge/RViz 모두 시스템(wall) 시간 사용. 카메라 helper는
+      useSystemTime=True, bridge 는 node clock. (sim-time 으로 통일하려면 별도 작업)
 ```
 
 **달성한 과제 요구사항**
 - [x] ROS2 기반 구성
-- [x] 센서 데이터 입력 (stereo camera)
-- [x] 시각화 (RViz2)
-- [ ] 노드 3개 이상 (다음 단계: stereo→depth, YOLO, Nav2)
+- [x] 센서 데이터 입력 (stereo camera + depth + 포인트클라우드)
+- [x] 시각화 (RViz2: 이미지 + odom + TF + 포인트클라우드)
+- [x] 주행 (키보드 텔레옵 → /cmd_vel)
+- [ ] 노드 3개 이상 (다음: 포인트클라우드→costmap→Nav2, YOLO)
 - [ ] 최종 데모
+
+**다음 단계: Nav2** — 포인트클라우드(/stereo/left/points)를 costmap obstacle
+layer 입력으로 → Nav2 path planning → /cmd_vel. depth 는 Isaac ground-truth
+(1단계), 추후 stereo matching 으로 교체.
 
 **중요 설계 결정**: 깊이 소스는 **stereo camera**. nova_carter_sensors 모델에 LiDAR도
 달려 있으나 프로젝트 설계상 **LiDAR는 사용하지 않는다**.

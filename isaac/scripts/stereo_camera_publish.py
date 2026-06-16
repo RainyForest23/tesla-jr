@@ -68,9 +68,11 @@ def build_graph():
             (f"{rgb}.inputs:topicName", f"{ns}/image_raw"),
             (f"{rgb}.inputs:frameId", frame_id),
             (f"{rgb}.inputs:type", "rgb"),
+            (f"{rgb}.inputs:useSystemTime", True),
             (f"{info}.inputs:topicName", f"{ns}/camera_info"),
             (f"{info}.inputs:frameId", frame_id),
             (f"{info}.inputs:type", "camera_info"),
+            (f"{info}.inputs:useSystemTime", True),
         ]
         connections += [
             ("OnTick.outputs:tick", f"{rp}.inputs:execIn"),

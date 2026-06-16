@@ -5,7 +5,8 @@ Tesla Jr. - 원클릭 씬 구성 런처
   1. spawn_robot.py            로봇 + ground + light + physics
   2. setup_scene.py            조명 강화 + 장애물 큐브
   3. stereo_camera_publish.py  stereo 카메라 publish 그래프
-  4. teleop_cmdvel.py          /cmd_vel 주행 그래프
+  4. depth_publish.py          depth + 포인트클라우드 그래프
+  5. teleop_cmdvel.py          /cmd_vel 주행 그래프
 
 사용법 (Isaac Sim Script Editor, 새 씬에서):
   exec(open("/workspace/isaac/scripts/launch_all.py").read())
@@ -22,6 +23,7 @@ _STEPS = [
     "spawn_robot.py",
     "setup_scene.py",
     "stereo_camera_publish.py",
+    "depth_publish.py",
     "teleop_cmdvel.py",
 ]
 
