@@ -40,6 +40,33 @@ Visualization Manager:
       Angle Tolerance: 0.1
       Covariance:
         Value: false
+    - Class: rviz_default_plugins/Map
+      Name: Local Costmap
+      Enabled: true
+      Topic:
+        Value: /local_costmap/costmap
+        Depth: 1
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+      Color Scheme: costmap
+    - Class: rviz_default_plugins/Map
+      Name: Global Costmap
+      Enabled: false
+      Topic:
+        Value: /global_costmap/costmap
+        Depth: 1
+        Reliability Policy: Reliable
+        Durability Policy: Transient Local
+      Color Scheme: costmap
+    - Class: rviz_default_plugins/Path
+      Name: Plan
+      Enabled: true
+      Topic:
+        Value: /plan
+        Depth: 1
+        Reliability Policy: Reliable
+        History Policy: Keep Last
+      Color: 0; 255; 0
     - Class: rviz_default_plugins/PointCloud2
       Name: Depth Cloud
       Enabled: true
