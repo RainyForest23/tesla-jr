@@ -126,6 +126,7 @@ class AckermannControl:
         else:
             steer = 0.0
         steer = max(-MAX_STEER, min(MAX_STEER, steer))
+        # 바퀴 축이 +Y -> omega>0 이 +X 전진 (물리적으로 맞음)
         omega = v / WHEEL_RADIUS
 
         for nm in STEER_JOINTS:
