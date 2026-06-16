@@ -9,8 +9,12 @@ stereo 카메라가 실제로 볼 것이 있도록 조명을 강화하고 로봇
 
 레이아웃 선택 (맨 아래 LAYOUT 변수):
   "simple"  : 완만 S자 회피용 큐브 2개 (5,+0.7)/(9,-0.7)
-  "hairpin" : 헤어핀(U턴) 통로 - 통로폭<회전직경 이라 3점턴(후진) 유발
-              목표 (1.0,-2.0) 로 보내면 끝에서 U턴하며 후진 발생.
+  "reverse" : 전방 벽 + 뒤쪽 목표. 정면이 막혀 Ackermann이 후진(K턴)으로만
+              풀 수 있음. 벽이 전방 FOV라 카메라가 즉시 맵핑 -> 안정적.
+              목표 (-2.0,0.5) 로 보내면 후진 발생.
+  "hairpin" : 헤어핀(U턴) 통로. 개념상 3점턴 유발하나 전방 카메라-only 로는
+              시작 시 옆/뒤 격벽을 못 봐서 글로벌 플랜이 최단직선이 됨(미로 부적합).
+              쓰려면 먼저 통로를 텔레옵 주행해 costmap 을 채운 뒤 목표 전송 필요.
 
 사용법 (Isaac Sim Script Editor, Play 중이어도 됨):
   exec(open("/workspace/isaac/scripts/setup_scene.py").read())
@@ -87,6 +91,29 @@ def add_obstacles_simple():
     print(f"[simple] 장애물 {counter[0]}개: (5,+0.7)/(9,-0.7)")
 
 
+def add_obstacles_reverse():
+    """전방 벽 + 뒤쪽 목표 = 후진(K턴) 유발.
+
+    로봇 원점(+X) 앞 x=1.2 에 폭 넓은 벽(y:-3~+3)을 세워 전진/전진선회를
+    완전히 막는다. 목표를 뒤쪽 (-2.0,0.5) 로 주면 Ackermann은 제자리 회전이
+    안 되므로 Smac REEDS_SHEPP 가 '후진 -> (필요시 전진)' 으로 경로를 푼다.
+    벽이 전방 카메라 FOV 안이라 costmap 에 즉시 반영됨(미관측 문제 없음).
+
+        [wall x=1.2, y:-3~+3]
+                │
+        [robot]→│      목표 (-2.0,0.5) 는 로봇 뒤쪽
+    """
+    stage = omni.usd.get_context().get_stage()
+    _clear_obstacles(stage)
+    counter = [0]
+    wall = _wall(1.2, -3.0, 1.2, 3.0)          # 전방 가로벽 (충분히 넓게)
+    _spawn_cubes(wall, (0.9, 0.1, 0.1), counter)  # 빨강
+    print(f"[reverse] 전방 벽 큐브 {counter[0]}개 (x=1.2). "
+          f"목표 (-2.0,0.5) 로 보내면 후진(K턴) 발생.")
+    print("  goal 예: ros2 topic pub --once /goal_pose geometry_msgs/msg/"
+          "PoseStamped \"{header:{frame_id:'odom'},pose:{position:{x:-2.0,y:0.5}}}\"")
+
+
 def add_obstacles_hairpin():
     """헤어핀(U턴) 통로. 로봇 원점(+X) -> 상단 차선 직진 -> 끝에서 U턴 ->
     하단 차선으로 복귀. 차선폭 2.0m(통과 가능), U턴 공간은 좁아 회전직경 2.0m
@@ -126,11 +153,13 @@ def add_obstacles_hairpin():
 
 
 # ─── 레이아웃 선택 ────────────────────────────────────────────────
-LAYOUT = "hairpin"   # "simple" | "hairpin"
+LAYOUT = "reverse"   # "simple" | "reverse" | "hairpin"
 
 setup_lighting()
 if LAYOUT == "simple":
     add_obstacles_simple()
+elif LAYOUT == "reverse":
+    add_obstacles_reverse()
 elif LAYOUT == "hairpin":
     add_obstacles_hairpin()
 else:
