@@ -19,10 +19,15 @@ dynamic_control 로 조인트 드라이브 게인 설정 + 타깃 적용.
 
 import math
 import omni.physx
+import omni.usd
 import rclpy
 from rclpy.executors import SingleThreadedExecutor
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, TransformStamped
+from nav_msgs.msg import Odometry
+from tf2_msgs.msg import TFMessage
+from rosgraph_msgs.msg import Clock
 from omni.isaac.dynamic_control import _dynamic_control
+from pxr import UsdGeom, Sdf, Gf
 
 ART_PATH = "/World/t870/base_link"
 WHEEL_BASE = 0.65
@@ -34,6 +39,12 @@ STEER_JOINTS = ["front_left_steer_joint", "front_right_steer_joint"]
 DRIVE_JOINTS = ["rear_left_wheel_joint", "rear_right_wheel_joint"]
 ROLL_JOINTS = ["front_left_wheel_joint", "front_right_wheel_joint"]
 
+# odom/tf (bridge 통합 - dynamic_control 충돌 방지를 위해 한 노드에서 처리)
+ODOM_FRAME = "odom"
+BASE_FRAME = "base_link"
+CAMERA_FRAME = "stereo_left"
+CAMERA_PRIM_PATH = "/World/t870/front_camera_mount/front_cam"
+
 
 class AckermannControl:
     def __init__(self):
@@ -43,14 +54,22 @@ class AckermannControl:
         self.v = 0.0
         self.w = 0.0
         self.node.create_subscription(Twist, "/cmd_vel", self._cmd_cb, 10)
+        # odom/tf/clock 발행 (이 노드가 dc 핸들을 단독 소유 -> bridge 별도 실행 불필요)
+        self.odom_pub = self.node.create_publisher(Odometry, "/odom", 10)
+        self.tf_pub = self.node.create_publisher(TFMessage, "/tf", 10)
+        self.clock_pub = self.node.create_publisher(Clock, "/clock", 10)
         # 전용 executor (전역 default executor/다른 spinner 와 충돌 방지)
         self._exec = SingleThreadedExecutor()
         self._exec.add_node(self.node)
 
         self.dc = _dynamic_control.acquire_dynamic_control_interface()
         self.art = None
+        self.root_body = None
         self.dofs = {}
         self._configured = False
+        self._cam_trans = None
+        self._cam_quat = None
+        self._compute_camera_static_tf()
 
         self._phys_sub = (
             omni.physx.get_physx_interface()
@@ -69,7 +88,83 @@ class AckermannControl:
             return False
         for name in STEER_JOINTS + DRIVE_JOINTS + ROLL_JOINTS:
             self.dofs[name] = self.dc.find_articulation_dof(self.art, name)
+        # odom 용 루트 바디 (동일 articulation -> 별도 get_rigid_body 호출 불필요)
+        self.root_body = self.dc.get_articulation_root_body(self.art)
         return True
+
+    def _compute_camera_static_tf(self):
+        """base_link 기준 카메라 상대 변환 1회 계산 (+optical 180°X 보정)."""
+        try:
+            stage = omni.usd.get_context().get_stage()
+            base = stage.GetPrimAtPath(Sdf.Path(ART_PATH))
+            cam = stage.GetPrimAtPath(Sdf.Path(CAMERA_PRIM_PATH))
+            if not base.IsValid() or not cam.IsValid():
+                return
+            xc = UsdGeom.XformCache()
+            rel = xc.GetLocalToWorldTransform(cam) * xc.GetLocalToWorldTransform(base).GetInverse()
+            optical = Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(1, 0, 0), 180.0))
+            rel = optical * rel
+            t = rel.ExtractTranslation()
+            q = rel.ExtractRotationQuat()
+            qi, qr = q.GetImaginary(), q.GetReal()
+            self._cam_trans = (t[0], t[1], t[2])
+            self._cam_quat = (qi[0], qi[1], qi[2], qr)
+        except Exception as e:
+            print(f"카메라 정적 TF 계산 예외: {e}")
+
+    @staticmethod
+    def _yaw(q):
+        return math.atan2(2.0 * (q.w * q.z + q.x * q.y),
+                          1.0 - 2.0 * (q.y * q.y + q.z * q.z))
+
+    def _publish_odom(self, stamp):
+        if self.root_body is None or self.root_body == 0:
+            return
+        pose = self.dc.get_rigid_body_pose(self.root_body)
+        lin = self.dc.get_rigid_body_linear_velocity(self.root_body)
+        ang = self.dc.get_rigid_body_angular_velocity(self.root_body)
+        yaw = self._yaw(pose.r)
+
+        odom = Odometry()
+        odom.header.stamp = stamp
+        odom.header.frame_id = ODOM_FRAME
+        odom.child_frame_id = BASE_FRAME
+        odom.pose.pose.position.x = float(pose.p.x)
+        odom.pose.pose.position.y = float(pose.p.y)
+        odom.pose.pose.position.z = float(pose.p.z)
+        odom.pose.pose.orientation.x = float(pose.r.x)
+        odom.pose.pose.orientation.y = float(pose.r.y)
+        odom.pose.pose.orientation.z = float(pose.r.z)
+        odom.pose.pose.orientation.w = float(pose.r.w)
+        odom.twist.twist.linear.x = float(lin.x * math.cos(yaw) + lin.y * math.sin(yaw))
+        odom.twist.twist.linear.y = float(-lin.x * math.sin(yaw) + lin.y * math.cos(yaw))
+        odom.twist.twist.angular.z = float(ang.z)
+        self.odom_pub.publish(odom)
+
+        tfs = []
+        tf = TransformStamped()
+        tf.header.stamp = stamp
+        tf.header.frame_id = ODOM_FRAME
+        tf.child_frame_id = BASE_FRAME
+        tf.transform.translation.x = float(pose.p.x)
+        tf.transform.translation.y = float(pose.p.y)
+        tf.transform.translation.z = float(pose.p.z)
+        tf.transform.rotation = odom.pose.pose.orientation
+        tfs.append(tf)
+        if self._cam_trans is not None:
+            cam_tf = TransformStamped()
+            cam_tf.header.stamp = stamp
+            cam_tf.header.frame_id = BASE_FRAME
+            cam_tf.child_frame_id = CAMERA_FRAME
+            cam_tf.transform.translation.x = float(self._cam_trans[0])
+            cam_tf.transform.translation.y = float(self._cam_trans[1])
+            cam_tf.transform.translation.z = float(self._cam_trans[2])
+            cam_tf.transform.rotation.x = float(self._cam_quat[0])
+            cam_tf.transform.rotation.y = float(self._cam_quat[1])
+            cam_tf.transform.rotation.z = float(self._cam_quat[2])
+            cam_tf.transform.rotation.w = float(self._cam_quat[3])
+            tfs.append(cam_tf)
+        self.tf_pub.publish(TFMessage(transforms=tfs))
 
     def _configure_drives(self):
         # 드라이브 게인 설정: 조향=위치(stiffness 큼), 구동=속도(stiffness 0, damping 큼),
@@ -133,6 +228,13 @@ class AckermannControl:
             self.dc.set_dof_position_target(self.dofs[nm], steer)
         for nm in DRIVE_JOINTS:
             self.dc.set_dof_velocity_target(self.dofs[nm], omega)
+
+        # odom/tf/clock 발행 (wall-clock, 카메라/RViz 와 시간 일치)
+        stamp = self.node.get_clock().now().to_msg()
+        clk = Clock()
+        clk.clock = stamp
+        self.clock_pub.publish(clk)
+        self._publish_odom(stamp)
 
     def stop(self):
         if self._phys_sub is not None:

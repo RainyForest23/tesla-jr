@@ -34,50 +34,30 @@ controller_server:
       movement_time_allowance: 10.0
     general_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
+      xy_goal_tolerance: 0.35
+      yaw_goal_tolerance: 3.15   # Ackermann 은 제자리 회전 불가 -> 최종 yaw 무시
       stateful: True
 
-    # DWB (차동 구동). 속도는 Carter 실측(~0.4 m/s)에 맞춤.
+    # RPP (Regulated Pure Pursuit) - Ackermann/차량형 적합. 제자리 회전 안 함.
     FollowPath:
-      plugin: "dwb_core::DWBLocalPlanner"
-      debug_trajectory_details: True
-      min_vel_x: -0.2
-      max_vel_x: 0.4
-      min_vel_y: 0.0
-      max_vel_y: 0.0
-      max_vel_theta: 1.0
-      min_speed_xy: 0.0
-      max_speed_xy: 0.4
-      min_speed_theta: 0.0
-      acc_lim_x: 1.5
-      acc_lim_y: 0.0
-      acc_lim_theta: 2.0
-      decel_lim_x: -1.5
-      decel_lim_y: 0.0
-      decel_lim_theta: -2.0
-      vx_samples: 20
-      vy_samples: 0
-      vtheta_samples: 20
-      sim_time: 1.5
-      linear_granularity: 0.05
-      angular_granularity: 0.025
+      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      desired_linear_vel: 0.4
+      lookahead_dist: 0.7
+      min_lookahead_dist: 0.4
+      max_lookahead_dist: 1.0
+      lookahead_time: 1.5
+      use_velocity_scaled_lookahead_dist: false
+      min_approach_linear_velocity: 0.1
+      approach_velocity_scaling_dist: 0.6
+      use_regulated_linear_velocity_scaling: true
+      regulated_linear_scaling_min_radius: 0.9
+      regulated_linear_scaling_min_speed: 0.25
+      use_rotate_to_heading: false       # Ackermann: 제자리 회전 금지 (필수)
+      allow_reversing: false
+      max_angular_accel: 3.0
+      max_robot_pose_search_dist: 10.0
+      use_collision_detection: true
       transform_tolerance: 0.5
-      xy_goal_tolerance: 0.25
-      trans_stopped_velocity: 0.25
-      short_circuit_trajectory_evaluation: True
-      stateful: True
-      critics: ["RotateToGoal", "Oscillation", "BaseObstacle", "GoalAlign", "PathAlign", "PathDist", "GoalDist"]
-      BaseObstacle.scale: 0.02
-      PathAlign.scale: 32.0
-      PathAlign.forward_point_distance: 0.1
-      GoalAlign.scale: 24.0
-      GoalAlign.forward_point_distance: 0.1
-      PathDist.scale: 32.0
-      GoalDist.scale: 24.0
-      RotateToGoal.scale: 32.0
-      RotateToGoal.slowing_factor: 5.0
-      RotateToGoal.lookahead_time: -1.0
 
 local_costmap:
   local_costmap:
