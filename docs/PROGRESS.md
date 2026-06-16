@@ -28,17 +28,30 @@ Isaac Sim 4.2.0 (Docker, GUI)  /World/Carter (nova_carter_sensors)
       useSystemTime=True, bridge 는 node clock. (sim-time 으로 통일하려면 별도 작업)
 ```
 
+**★ 1차 목표 달성 (2026-06-17): T870 자율주행 시뮬 작동**
+카메라→포인트클라우드→costmap→Nav2(RPP)→/cmd_vel→Ackermann→T870 주행→목표 도달.
+목표 (4,3) 자율 도달 검증 완료.
+
 **달성한 과제 요구사항**
 - [x] ROS2 기반 구성
 - [x] 센서 데이터 입력 (stereo camera + depth + 포인트클라우드)
-- [x] 시각화 (RViz2: 이미지 + odom + TF + 포인트클라우드)
-- [x] 주행 (키보드 텔레옵 → /cmd_vel)
-- [ ] 노드 3개 이상 (다음: 포인트클라우드→costmap→Nav2, YOLO)
-- [ ] 최종 데모
+- [x] 시각화 (RViz2: 이미지 + odom + TF + 포인트클라우드 + costmap + 경로)
+- [x] 주행 (키보드 텔레옵 + Nav2 자율주행)
+- [x] 노드 3개 이상 (camera publish / ackermann+odom / Nav2 스택)
+- [x] 동작 데모 (T870 자율주행)
 
-**다음 단계: Nav2** — 포인트클라우드(/stereo/left/points)를 costmap obstacle
-layer 입력으로 → Nav2 path planning → /cmd_vel. depth 는 Isaac ground-truth
-(1단계), 추후 stereo matching 으로 교체.
+## T870 자율주행 실행 순서
+1. (호스트) `docker/run_isaac_gui.sh`
+2. (Script Editor) `exec(open("/workspace/isaac/scripts/launch_t870.py").read())`
+3. **Play(▶)**
+4. (Script Editor) `exec(open("/workspace/isaac/scripts/fix_friction.py").read())`
+5. (Script Editor) `exec(open("/workspace/isaac/scripts/ackermann_control.py").read())`
+   — 구동 + odom/tf/clock 통합 (sim_ros2_bridge 별도 실행 불필요)
+6. (호스트 새 터미널) `nav2/run_nav2.sh`
+7. 목표: RViz "Nav2 Goal" 또는 `navigate_to_pose` 액션
+
+> depth 는 Isaac ground-truth (1단계). 추후 stereo matching(stereo_image_proc) 교체 예정.
+> 남은 고도화: 좌/우 스테레오 추가, YOLO, VLM(Gemma4) goal, T870 실측 치수 반영.
 
 **중요 설계 결정**: 깊이 소스는 **stereo camera**. nova_carter_sensors 모델에 LiDAR도
 달려 있으나 프로젝트 설계상 **LiDAR는 사용하지 않는다**.
