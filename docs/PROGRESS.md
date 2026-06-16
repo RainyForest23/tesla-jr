@@ -28,9 +28,16 @@ Isaac Sim 4.2.0 (Docker, GUI)  /World/Carter (nova_carter_sensors)
       useSystemTime=True, bridge 는 node clock. (sim-time 으로 통일하려면 별도 작업)
 ```
 
-**★ 1차 목표 달성 (2026-06-17): T870 자율주행 시뮬 작동**
-카메라→포인트클라우드→costmap→Nav2(RPP)→/cmd_vel→Ackermann→T870 주행→목표 도달.
-목표 (4,3) 자율 도달 검증 완료.
+**★ 1차 목표 달성 (2026-06-17): T870 자율주행 + 장애물 회피 시뮬 작동**
+카메라→포인트클라우드→costmap→Nav2(Smac Hybrid-A*/RPP)→/cmd_vel→Ackermann→T870 주행→목표 도달.
+
+**장애물 회피 검증 (2026-06-17, 클린 재시작 후)**: 목표 (11,0) 자율 도달.
+- 장애물①(5,+0.7) → 오른쪽으로 회피 (y −0.13)
+- 장애물②(9,−0.7) → 왼쪽으로 회피 (y +0.12)
+- ±0.13 완만 S자 (Ackermann 최소반경 1.0m 준수), 목표 10.81에서 정지 (tol 0.35).
+- 핵심: NavFn(infeasible 급선회 w~0.48) → Smac Hybrid-A*(완만 feasible) 교체로 해결.
+- 주의: recovery 사이클 누적 시 dynamic_control 핸들/물리가 꼬여 전진 명령에도 안 움직임
+  → 컨테이너 클린 재시작으로 복구 (재시작 직후 직진 1m 정상 확인).
 
 **달성한 과제 요구사항**
 - [x] ROS2 기반 구성
