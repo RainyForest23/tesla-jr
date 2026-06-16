@@ -38,7 +38,7 @@ WIDTH, HEIGHT = 640, 480
 #  yaw_deg : 마운트(±90°) 기준 카메라를 앞쪽으로 더 틀어주는 각.
 #            left -30° / right +30° -> 좌우 카메라 중심이 ±60° -> front 와 합쳐
 #            전방 약 180° 연속 커버 (화각 66° 라 이음새 겹침).
-FOCAL_MM = 16.0
+FOCAL_MM = 12.0   # ~수평 82° (넓게: front 와 이음새 겹치고 옆까지 커버)
 
 CAMERAS = [
     {
@@ -47,7 +47,7 @@ CAMERAS = [
         "graph": "/World/T870LeftCamGraph",
         "frame": "left_cam",
         "topic": "/left_cam",
-        "yaw_deg": -30.0,   # 앞쪽으로 틀기 (mount +90° -> 실제 +60°)
+        "yaw_deg": -20.0,   # 앞쪽 20° 틸트 (mount +90° -> 실제 +70°, 시야 +29~+111°)
     },
     {
         "mount": "/World/t870/right_camera_mount",
@@ -55,7 +55,7 @@ CAMERAS = [
         "graph": "/World/T870RightCamGraph",
         "frame": "right_cam",
         "topic": "/right_cam",
-        "yaw_deg": +30.0,   # 앞쪽으로 틀기 (mount -90° -> 실제 -60°)
+        "yaw_deg": +20.0,   # 실제 -70°, 시야 -29~-111° (코너 옆벽까지 보임)
     },
 ]
 

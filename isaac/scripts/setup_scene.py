@@ -108,18 +108,17 @@ def add_obstacles_corner():
     counter = [0]
     gray = (0.6, 0.6, 0.6)
     red = (0.9, 0.1, 0.1)
-    bottom = _wall(0.0, -1.2, 3.6, -1.2)    # 진입차선 바닥벽
-    outer = _wall(3.6, -1.2, 3.6, 4.5)      # 정면벽 + 출구차선 바깥벽
-    topentry = _wall(0.0, 1.2, 1.6, 1.2)    # 진입차선 윗벽 (짧게)
-    inner = _wall(1.6, 1.2, 1.6, 4.5)       # 출구차선 안쪽벽
+    # 차체가 1.0m(길이)라 코너에 충분한 회전공간 필요: 차선폭 ~3.0m.
+    bottom = _wall(0.0, -1.4, 4.0, -1.4)    # 진입차선 바닥벽
+    outer = _wall(4.0, -1.4, 4.0, 5.0)      # 정면벽 + 출구차선 바깥벽
+    topentry = _wall(0.0, 1.4, 1.0, 1.4)    # 진입차선 윗벽 (짧게)
+    inner = _wall(1.0, 1.4, 1.0, 5.0)       # 출구차선 안쪽벽 (폭 3.0m)
     _spawn_cubes(bottom, gray, counter)
     _spawn_cubes(outer, red, counter)       # 정면벽 빨강 강조
     _spawn_cubes(topentry, gray, counter)
     _spawn_cubes(inner, gray, counter)
-    print(f"[corner] 벽 큐브 {counter[0]}개. 정면벽(x=3.6) 만나 좌 90° 꺾어 진입.")
-    print("  목표 (2.6,4.0). 코너가 좁아 후진(3점턴) 발생 예상.")
-    print("  goal 예: ros2 topic pub --once /goal_pose geometry_msgs/msg/"
-          "PoseStamped \"{header:{frame_id:'odom'},pose:{position:{x:2.6,y:4.0}}}\"")
+    print(f"[corner] 벽 큐브 {counter[0]}개. 정면벽(x=4.0) 만나 좌 90° 꺾어 진입.")
+    print("  목표 (2.5,4.0). send_goal.sh 2.5 4.0")
 
 
 def add_obstacles_gate():
