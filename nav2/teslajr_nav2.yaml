@@ -43,9 +43,9 @@ controller_server:
     # 전진' 같은 의도적 다단 기동(3점턴) 가능. Ackermann 모델 + 후진(vx_min<0) 허용.
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
-      time_steps: 56
+      time_steps: 40                # 2.0s 지평 (가볍게: bringup 타임아웃/저FPS 대응)
       model_dt: 0.05
-      batch_size: 2000
+      batch_size: 1000              # 2000->1000 (설정/런타임 부담 절반)
       vx_std: 0.2
       vy_std: 0.2
       wz_std: 0.4
