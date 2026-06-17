@@ -31,6 +31,14 @@ Isaac Sim 4.2.0 (Docker, GUI)  /World/Carter (nova_carter_sensors)
 **★ 1차 목표 달성 (2026-06-17): T870 자율주행 + 장애물 회피 시뮬 작동**
 카메라→포인트클라우드→costmap→Nav2(Smac Hybrid-A*/RPP)→/cmd_vel→Ackermann→T870 주행→목표 도달.
 
+**코너 주행 + 제어/인식 고도화 (2026-06-17)**: L자 코너(정면벽 회피 + 좌 90° 진입).
+- Nav2 footprint 1.0×0.6(원형반경 대신) → 차 길이 인식, 벽 안 붙음.
+- 컨트롤러 RPP→**MPPI**(`nav2_mppi_controller`, Ackermann, 후진허용, footprint 충돌검사).
+  batch 1000/time_steps 40 경량화(안 그러면 bringup lifecycle 타임아웃).
+- **global costmap 누적화(clearing:False)**: 지나친 뒤쪽 벽을 raytrace clearing이
+  소거하던 문제 해결 → 본 벽 모두 유지(persistent map). local은 반응형 유지.
+- 결과: 2.4m 좁은 코너를 MPPI로 벽에 안 붙고 매끄럽게 완주. `nav2/send_goal.sh x y` 로 목표 전송.
+
 **좌/우 스테레오 카메라 추가 (2026-06-17)**: 실제 T870 설계대로 정면+좌+우 3카메라.
 - `isaac/scripts/add_side_cameras.py` (front 불변, 좌/우만 추가).
 - 좌/우를 전방 30° 틸트(실제 중심 ±60°) + 화각 ~66°(focal 16mm) → 전방 약 180° 연속 커버.
