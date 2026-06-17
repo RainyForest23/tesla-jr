@@ -91,6 +91,33 @@ def add_obstacles_simple():
     print(f"[simple] 장애물 {counter[0]}개: (5,+0.7)/(9,-0.7)")
 
 
+def add_obstacles_snake():
+    """ㄹ자(스네이크) 미로: 수평 3차선을 좌/우 교대로 연결. 동→북→서→북→동
+    (4번 꺾음). 차선폭 3.0m. persistent costmap + MPPI 다중코너 주행 검증.
+    목표 (5.0, 6.0).
+
+        lane3 (y4.5~7.5) ──────────→ [goal 5,6]   (동)
+              ↑ gap x[0,2]
+        lane2 (y1.5~4.5) ←────────── 서
+                          gap x[4,6] ↑
+        [robot]→ lane1 (y-1.5~1.5) ─→ 동
+    """
+    stage = omni.usd.get_context().get_stage()
+    _clear_obstacles(stage)
+    counter = [0]
+    gray = (0.6, 0.6, 0.6)
+    walls = []
+    walls += _wall(0.0, -1.5, 6.0, -1.5)   # 바닥 경계
+    walls += _wall(0.0,  1.5, 4.0,  1.5)   # div1 (우측 x[4,6] 열림 -> 위로)
+    walls += _wall(2.0,  4.5, 6.0,  4.5)   # div2 (좌측 x[0,2] 열림 -> 위로)
+    walls += _wall(0.0,  7.5, 6.0,  7.5)   # 천장 경계
+    walls += _wall(0.0,  1.5, 0.0,  7.5)   # 좌측 경계 (lane1 입구는 열림)
+    walls += _wall(6.0, -1.5, 6.0,  7.5)   # 우측 경계
+    _spawn_cubes(walls, gray, counter)
+    print(f"[snake] ㄹ자 미로 벽 큐브 {counter[0]}개 (차선폭 3.0m). 목표 (5,6).")
+    print("  send_goal.sh 5 6   -> 동→북→서→북→동 4코너 주행")
+
+
 def add_obstacles_corner():
     """L자 코너 + 후진 유발. 로봇이 진입차선을 직진하다 정면 벽(x=3.6)에 막혀
     좌측(+Y)으로 90° 꺾어 출구차선으로 진입해야 한다. 코너 통로가 좁아 최소
@@ -205,7 +232,7 @@ def add_obstacles_hairpin():
 
 
 # ─── 레이아웃 선택 ────────────────────────────────────────────────
-LAYOUT = "corner"   # "simple" | "gate" | "corner" | "reverse" | "hairpin"
+LAYOUT = "snake"   # "simple" | "gate" | "corner" | "snake" | "reverse" | "hairpin"
 
 setup_lighting()
 if LAYOUT == "simple":
@@ -214,6 +241,8 @@ elif LAYOUT == "gate":
     add_obstacles_gate()
 elif LAYOUT == "corner":
     add_obstacles_corner()
+elif LAYOUT == "snake":
+    add_obstacles_snake()
 elif LAYOUT == "reverse":
     add_obstacles_reverse()
 elif LAYOUT == "hairpin":
