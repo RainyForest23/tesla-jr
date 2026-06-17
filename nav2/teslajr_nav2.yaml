@@ -69,8 +69,14 @@ controller_server:
         time_step: 3
       AckermannConstraints:
         min_turning_r: 1.0          # 차량 최소회전반경
-      # PreferForwardCritic 은 일부러 제외 -> 후진을 벌하지 않음
-      critics: ["ConstraintCritic", "CostCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic"]
+      # PreferForwardCritic: 전진 선호(weight 5) -> 평소엔 전진, 다른 크리틱이
+      # 우세할 때만(빡빡한 코너 등) 후진. 빼면 미로 시작부터 엉뚱하게 후진함.
+      critics: ["ConstraintCritic", "CostCritic", "GoalCritic", "GoalAngleCritic", "PathAlignCritic", "PathFollowCritic", "PathAngleCritic", "PreferForwardCritic"]
+      PreferForwardCritic:
+        enabled: true
+        cost_power: 1
+        cost_weight: 5.0
+        threshold_to_consider: 0.5
       ConstraintCritic:
         enabled: true
         cost_power: 1

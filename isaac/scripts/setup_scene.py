@@ -92,30 +92,36 @@ def add_obstacles_simple():
 
 
 def add_obstacles_snake():
-    """ㄹ자(스네이크) 미로: 수평 3차선을 좌/우 교대로 연결. 동→북→서→북→동
-    (4번 꺾음). 차선폭 3.0m. persistent costmap + MPPI 다중코너 주행 검증.
-    목표 (5.0, 6.0).
+    """ㄹ자(스네이크) 미로 — 완전 밀폐형. 외곽을 막아 시작↔목표 사이 유일한
+    경로가 ㄹ 통로가 되게 함(바깥으로 빙 돌아가는 꼼수 차단). 동→북→서→북→동.
+    차선폭 3.0m. persistent costmap + MPPI 다중코너 주행 검증. 목표 (5.0, 6.0).
 
-        lane3 (y4.5~7.5) ──────────→ [goal 5,6]   (동)
-              ↑ gap x[0,2]
-        lane2 (y1.5~4.5) ←────────── 서
-                          gap x[4,6] ↑
-        [robot]→ lane1 (y-1.5~1.5) ─→ 동
+        ┌────────────────────┐ top y7.5
+        │ lane3 ───────→[goal]│ (동)
+        │ ┌──── div2(x2~6) ───┤  gap 좌 x[-1.2,2]
+        │ │ lane2 ←───────────│ (서)
+        ├─── div1(x-1.2~4) ─┐ │  gap 우 x[4,6]
+        │ [robot]→ lane1 ───┘ │ (동)
+        └────────────────────┘ bottom y-1.5
+        left x-1.2          right x6
     """
     stage = omni.usd.get_context().get_stage()
     _clear_obstacles(stage)
     counter = [0]
     gray = (0.6, 0.6, 0.6)
+    L = -1.2   # 좌측 외벽 (로봇 시작 footprint 와 안 겹치게 여유)
     walls = []
-    walls += _wall(0.0, -1.5, 6.0, -1.5)   # 바닥 경계
-    walls += _wall(0.0,  1.5, 4.0,  1.5)   # div1 (우측 x[4,6] 열림 -> 위로)
-    walls += _wall(2.0,  4.5, 6.0,  4.5)   # div2 (좌측 x[0,2] 열림 -> 위로)
-    walls += _wall(0.0,  7.5, 6.0,  7.5)   # 천장 경계
-    walls += _wall(0.0,  1.5, 0.0,  7.5)   # 좌측 경계 (lane1 입구는 열림)
-    walls += _wall(6.0, -1.5, 6.0,  7.5)   # 우측 경계
+    # 외곽 경계 (완전 밀폐)
+    walls += _wall(L,   -1.5, 6.0, -1.5)   # 바닥
+    walls += _wall(L,    7.5, 6.0,  7.5)   # 천장
+    walls += _wall(L,   -1.5, L,    7.5)   # 좌벽
+    walls += _wall(6.0, -1.5, 6.0,  7.5)   # 우벽
+    # 내부 격벽 (교대 개구부)
+    walls += _wall(L,    1.5, 4.0,  1.5)   # div1 (우측 x[4,6] 열림 -> 위로)
+    walls += _wall(2.0,  4.5, 6.0,  4.5)   # div2 (좌측 x[L,2] 열림 -> 위로)
     _spawn_cubes(walls, gray, counter)
-    print(f"[snake] ㄹ자 미로 벽 큐브 {counter[0]}개 (차선폭 3.0m). 목표 (5,6).")
-    print("  send_goal.sh 5 6   -> 동→북→서→북→동 4코너 주행")
+    print(f"[snake] 밀폐 ㄹ자 미로 벽 큐브 {counter[0]}개 (차선폭 3.0m). 목표 (5,6).")
+    print("  send_goal.sh 5 6   -> 바깥 우회 불가, ㄹ 통로로만 주행")
 
 
 def add_obstacles_corner():
