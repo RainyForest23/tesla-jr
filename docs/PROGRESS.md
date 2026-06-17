@@ -31,6 +31,12 @@ Isaac Sim 4.2.0 (Docker, GUI)  /World/Carter (nova_carter_sensors)
 **★ 1차 목표 달성 (2026-06-17): T870 자율주행 + 장애물 회피 시뮬 작동**
 카메라→포인트클라우드→costmap→Nav2(Smac Hybrid-A*/RPP)→/cmd_vel→Ackermann→T870 주행→목표 도달.
 
+**Phase 2 — YOLO + JSON Goal 노드 (2026-06-17, 검증 완료)**:
+- `nodes/yolo_node.py`: 카메라 → YOLO(yolov8n, GPU ~18Hz) → `/yolo/image` + `/yolo/detections_json`.
+  sim에 사람(Isaac People) 배치 → **person 0.82 라이브 탐지 확인**. (`isaac/scripts/add_yolo_target.py`)
+- `nodes/json_goal_node.py`: `/goal_json`(JSON) → navigate_to_pose. **VLM→주행목표 다리 검증.**
+- 설치: `pip3 install --user ultralytics` + `pip3 install --user "numpy<2"`(필수, cv_bridge 충돌 회피).
+
 **미로 주행 + 가상 범퍼 (2026-06-17)**:
 - 단일/이중 L자 코너: footprint+MPPI+persistent costmap 으로 매끈히 완주.
 - 4코너 ㄹ자(밀폐 snake) 미로: 첫 코너 진입까지 성공, 완주 실패 → camera-only 한계 확정.
