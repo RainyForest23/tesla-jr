@@ -148,7 +148,7 @@ local_costmap:
         z_voxels: 16
         max_obstacle_height: 2.0
         mark_threshold: 0
-        observation_sources: front left right
+        observation_sources: front left right bump
         front:
           topic: /stereo/left/points
           max_obstacle_height: 2.0
@@ -182,6 +182,17 @@ local_costmap:
           obstacle_min_range: 0.2
           raytrace_max_range: 8.0
           raytrace_min_range: 0.2
+        bump:                          # 가상 범퍼 추론 장애물 (후면 등 미관측 벽)
+          topic: /virtual_bumper/points
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.35
+          clearing: False
+          marking: True
+          data_type: "PointCloud2"
+          obstacle_max_range: 3.0
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0
@@ -213,7 +224,7 @@ global_costmap:
         z_voxels: 16
         max_obstacle_height: 2.0
         mark_threshold: 0
-        observation_sources: front left right
+        observation_sources: front left right bump
         # global 은 누적(persistent) 지도: clearing=False -> 한 번 본 벽은 유지.
         # 지나친 뒤쪽 벽을 안 잊어버려서 후진/재계획 시 박지 않음.
         front:
@@ -249,6 +260,17 @@ global_costmap:
           obstacle_min_range: 0.2
           raytrace_max_range: 8.0
           raytrace_min_range: 0.2
+        bump:                          # 가상 범퍼 추론 장애물 (persistent)
+          topic: /virtual_bumper/points
+          max_obstacle_height: 2.0
+          min_obstacle_height: 0.35
+          clearing: False
+          marking: True
+          data_type: "PointCloud2"
+          obstacle_max_range: 3.0
+          obstacle_min_range: 0.0
+          raytrace_max_range: 3.0
+          raytrace_min_range: 0.0
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 3.0

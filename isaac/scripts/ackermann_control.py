@@ -26,6 +26,8 @@ from geometry_msgs.msg import Twist, TransformStamped
 from nav_msgs.msg import Odometry
 from tf2_msgs.msg import TFMessage
 from rosgraph_msgs.msg import Clock
+from sensor_msgs.msg import PointCloud2, PointField
+import numpy as np
 from omni.isaac.dynamic_control import _dynamic_control
 from pxr import UsdGeom, Sdf, Gf
 
@@ -34,6 +36,13 @@ WHEEL_BASE = 0.65
 WHEEL_RADIUS = 0.12
 MAX_STEER = 0.6          # rad
 MIN_SPEED_FOR_STEER = 0.05
+
+# 가상 범퍼 (후면 카메라 없음 보완): 명령했는데 안 움직이면 그 방향에 장애물로 추론
+STUCK_CMD_THRESH = 0.05     # 이 이상 속도 명령했는데
+STUCK_SPEED_THRESH = 0.03   # 실제 속도가 이 미만이고
+STUCK_TIME = 1.0            # 이 시간(초) 지속되면 stuck 판정
+BUMP_DIST = 0.7            # 진행방향 접촉 추정 거리 (base 중심 기준)
+BUMP_Z = 0.5              # 마킹 높이 (costmap min_obstacle_height 0.35 안에 들게)
 
 STEER_JOINTS = ["front_left_steer_joint", "front_right_steer_joint"]
 DRIVE_JOINTS = ["rear_left_wheel_joint", "rear_right_wheel_joint"]
@@ -58,6 +67,10 @@ class AckermannControl:
         self.odom_pub = self.node.create_publisher(Odometry, "/odom", 10)
         self.tf_pub = self.node.create_publisher(TFMessage, "/tf", 10)
         self.clock_pub = self.node.create_publisher(Clock, "/clock", 10)
+        # 가상 범퍼: stuck 으로 추론한 장애물 포인트 발행 (costmap 소스)
+        self.bump_pub = self.node.create_publisher(PointCloud2, "/virtual_bumper/points", 10)
+        self.bump_points = []
+        self.stuck_time = 0.0
         # 전용 executor (전역 default executor/다른 spinner 와 충돌 방지)
         self._exec = SingleThreadedExecutor()
         self._exec.add_node(self.node)
@@ -166,6 +179,42 @@ class AckermannControl:
             tfs.append(cam_tf)
         self.tf_pub.publish(TFMessage(transforms=tfs))
 
+    def _add_bump(self, pose, v):
+        """stuck 지점의 진행방향 끝에 가상 장애물 점들을 추가 (측면으로 짧은 벽)."""
+        yaw = self._yaw(pose.r)
+        fx, fy = math.cos(yaw), math.sin(yaw)
+        s = 1.0 if v > 0 else -1.0          # 전진이면 앞, 후진이면 뒤
+        cx = pose.p.x + s * fx * BUMP_DIST
+        cy = pose.p.y + s * fy * BUMP_DIST
+        lxu, lyu = -fy, fx                  # 진행방향에 수직(측면)
+        for d in (-0.4, -0.2, 0.0, 0.2, 0.4):
+            self.bump_points.append((cx + lxu * d, cy + lyu * d, BUMP_Z))
+        if len(self.bump_points) > 800:
+            self.bump_points = self.bump_points[-800:]
+        print(f"[가상범퍼] stuck 감지 -> 장애물 마킹 @({cx:.2f},{cy:.2f}) "
+              f"{'전진' if v > 0 else '후진'}방향")
+
+    def _publish_bump(self, stamp):
+        n = len(self.bump_points)
+        if n == 0:
+            return
+        msg = PointCloud2()
+        msg.header.stamp = stamp
+        msg.header.frame_id = ODOM_FRAME
+        msg.height = 1
+        msg.width = n
+        msg.fields = [
+            PointField(name="x", offset=0, datatype=PointField.FLOAT32, count=1),
+            PointField(name="y", offset=4, datatype=PointField.FLOAT32, count=1),
+            PointField(name="z", offset=8, datatype=PointField.FLOAT32, count=1),
+        ]
+        msg.is_bigendian = False
+        msg.point_step = 12
+        msg.row_step = 12 * n
+        msg.is_dense = True
+        msg.data = np.array(self.bump_points, dtype=np.float32).tobytes()
+        self.bump_pub.publish(msg)
+
     def _configure_drives(self):
         # 드라이브 게인 설정: 조향=위치(stiffness 큼), 구동=속도(stiffness 0, damping 큼),
         # 앞 rolling=자유(거의 무저항)
@@ -215,14 +264,35 @@ class AckermannControl:
 
         self.dc.wake_up_articulation(self.art)
         v, w = self.v, self.w
-        # Ackermann 조향각 (정지 시 0)
-        if abs(v) > MIN_SPEED_FOR_STEER:
-            steer = math.atan(WHEEL_BASE * w / v)
+
+        # --- 가상 범퍼: 명령했는데 실제로 안 움직이면 그 방향에 장애물 추론 ---
+        pose = None
+        speed = 1.0   # 모르면 stuck 판정 안 함
+        if self.root_body and self.root_body != 0:
+            pose = self.dc.get_rigid_body_pose(self.root_body)
+            lv = self.dc.get_rigid_body_linear_velocity(self.root_body)
+            speed = math.hypot(lv.x, lv.y)
+        force_stop = False
+        if abs(v) > STUCK_CMD_THRESH and speed < STUCK_SPEED_THRESH:
+            self.stuck_time += dt
+            if self.stuck_time > STUCK_TIME and pose is not None:
+                self._add_bump(pose, v)     # 장애물 마킹
+                force_stop = True           # 갈리지 않게 정지
+                self.stuck_time = 0.0
         else:
-            steer = 0.0
-        steer = max(-MAX_STEER, min(MAX_STEER, steer))
-        # 바퀴 축이 +Y -> omega>0 이 +X 전진 (물리적으로 맞음)
-        omega = v / WHEEL_RADIUS
+            self.stuck_time = 0.0
+
+        # Ackermann 조향각 (정지 시 0)
+        if force_stop:
+            steer, omega = 0.0, 0.0
+        else:
+            if abs(v) > MIN_SPEED_FOR_STEER:
+                steer = math.atan(WHEEL_BASE * w / v)
+            else:
+                steer = 0.0
+            steer = max(-MAX_STEER, min(MAX_STEER, steer))
+            # 바퀴 축이 +Y -> omega>0 이 +X 전진 (물리적으로 맞음)
+            omega = v / WHEEL_RADIUS
 
         for nm in STEER_JOINTS:
             self.dc.set_dof_position_target(self.dofs[nm], steer)
@@ -235,6 +305,7 @@ class AckermannControl:
         clk.clock = stamp
         self.clock_pub.publish(clk)
         self._publish_odom(stamp)
+        self._publish_bump(stamp)
 
     def stop(self):
         if self._phys_sub is not None:
