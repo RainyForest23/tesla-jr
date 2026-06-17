@@ -14,9 +14,14 @@ colcon 패키지 없이 `python3 nodes/<파일>` 로 바로 실행.
 
 **의존성 설치 (최초 1회)**
 ```bash
-pip install ultralytics
+pip3 install --user ultralytics      # torch(CUDA) 포함
+pip3 install --user "numpy<2"        # ★ 필수: ultralytics가 numpy2를 끌어오는데
+                                     #   ROS2 cv_bridge/matplotlib는 numpy1.x 컴파일 ->
+                                     #   안 맞추면 '_ARRAY_API not found' 로 import 실패
 sudo apt install ros-humble-cv-bridge
 ```
+> rclpy 가 시스템 파이썬이라 ultralytics 도 같은 파이썬(--user)에 설치해야 함.
+> 검증: GPU 추론 ~18Hz, /yolo/image 발행 확인됨 (2026-06-17).
 
 **실행**
 ```bash
