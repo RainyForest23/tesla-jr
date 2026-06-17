@@ -31,6 +31,14 @@ Isaac Sim 4.2.0 (Docker, GUI)  /World/Carter (nova_carter_sensors)
 **★ 1차 목표 달성 (2026-06-17): T870 자율주행 + 장애물 회피 시뮬 작동**
 카메라→포인트클라우드→costmap→Nav2(Smac Hybrid-A*/RPP)→/cmd_vel→Ackermann→T870 주행→목표 도달.
 
+**미로 주행 + 가상 범퍼 (2026-06-17)**:
+- 단일/이중 L자 코너: footprint+MPPI+persistent costmap 으로 매끈히 완주.
+- 4코너 ㄹ자(밀폐 snake) 미로: 첫 코너 진입까지 성공, 완주 실패 → camera-only 한계 확정.
+- **가상 범퍼**(`ackermann_control.py`): 후면 카메라 없어 후진 시 뒤 벽 못 봄 →
+  "명령했는데 안 움직이면(stuck) 그 방향에 장애물 추론" → `/virtual_bumper/points`
+  발행(costmap bump 소스, persistent) + 구동 정지. 바깥 우회 꼼수 차단 검증.
+- 결론: 복잡 미로 완주는 지도(SLAM) 필요 = Phase 3. (Tesla식 vision-only 철학 유지)
+
 **코너 주행 + 제어/인식 고도화 (2026-06-17)**: L자 코너(정면벽 회피 + 좌 90° 진입).
 - Nav2 footprint 1.0×0.6(원형반경 대신) → 차 길이 인식, 벽 안 붙음.
 - 컨트롤러 RPP→**MPPI**(`nav2_mppi_controller`, Ackermann, 후진허용, footprint 충돌검사).
