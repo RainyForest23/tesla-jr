@@ -67,10 +67,14 @@ usd = _find_character(root) if root else None
 if usd:
     print(f"사람 에셋: {usd}")
     add_reference_to_stage(usd_path=usd, prim_path=TARGET_PRIM)
-    xf = UsdGeom.Xformable(stage.GetPrimAtPath(Sdf.Path(TARGET_PRIM)))
-    xf.ClearXformOpOrder()
-    xf.AddTranslateOp().Set(Gf.Vec3d(X_AHEAD, 0.0, 0.0))
-    xf.AddRotateXYZOp().Set(Gf.Vec3f(90.0, 0.0, -90.0))  # 세워 + 로봇(-X) 바라보게
+    # 정밀도 충돌 피하려 XFormPrim 으로 위치/방향 설정 (캐릭터는 Z-up 기립 기본).
+    # orientation wxyz=[0,0,0,1] = yaw 180° -> 로봇(원점) 쪽(-X) 바라봄.
+    import numpy as np
+    from omni.isaac.core.prims import XFormPrim
+    XFormPrim(TARGET_PRIM).set_world_pose(
+        position=np.array([X_AHEAD, 0.0, 0.0]),
+        orientation=np.array([0.0, 0.0, 0.0, 1.0]),
+    )
     print(f">>> 사람 배치 완료 @({X_AHEAD},0). Play -> YOLO 가 'person' 탐지할 것.")
 else:
     print("!!! 사람 에셋 못 찾음. assets root/People 경로 확인 필요.")
