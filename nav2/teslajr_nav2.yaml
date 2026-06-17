@@ -208,11 +208,13 @@ global_costmap:
         max_obstacle_height: 2.0
         mark_threshold: 0
         observation_sources: front left right
+        # global 은 누적(persistent) 지도: clearing=False -> 한 번 본 벽은 유지.
+        # 지나친 뒤쪽 벽을 안 잊어버려서 후진/재계획 시 박지 않음.
         front:
           topic: /stereo/left/points
           max_obstacle_height: 2.0
           min_obstacle_height: 0.35
-          clearing: True
+          clearing: False
           marking: True
           data_type: "PointCloud2"
           obstacle_max_range: 6.0
@@ -223,7 +225,7 @@ global_costmap:
           topic: /left_cam/points
           max_obstacle_height: 2.0
           min_obstacle_height: 0.35
-          clearing: True
+          clearing: False
           marking: True
           data_type: "PointCloud2"
           obstacle_max_range: 6.0
@@ -234,7 +236,7 @@ global_costmap:
           topic: /right_cam/points
           max_obstacle_height: 2.0
           min_obstacle_height: 0.35
-          clearing: True
+          clearing: False
           marking: True
           data_type: "PointCloud2"
           obstacle_max_range: 6.0
